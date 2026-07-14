@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Google Ads Intelligence Report — tự động phân tích dữ liệu Google Ads từ Google Sheets.">
+  <meta name="theme-color" content="#0b1220">
+  <title>Google Ads Intelligence Report</title>
+  <link rel="preconnect" href="https://docs.google.com">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Về đầu trang">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span>
+          <strong id="report-name">Google Ads Intelligence</strong>
+          <small>Decision report · Google Sheets live data</small>
+        </span>
+      </a>
+      <div class="topbar-actions">
+        <span id="connection-pill" class="status-pill status-loading">
+          <span class="status-dot"></span>
+          Đang kết nối dữ liệu
+        </span>
+        <button id="method-button" class="button button-ghost" type="button">Cách chấm điểm</button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero panel">
+        <div class="hero-copy">
+          <p class="eyebrow">BÁO CÁO RA QUYẾT ĐỊNH</p>
+          <h1>Không chỉ xem số — hiểu điều gì đang tốt và phải làm gì tiếp theo.</h1>
+          <p class="hero-description">
+            Dữ liệu được đọc trực tiếp từ workbook Google Ads, đối chiếu với Plan và Actual Leads,
+            sau đó chuyển thành cảnh báo, nguyên nhân và hành động ưu tiên.
+          </p>
+        </div>
+        <div class="filter-card" aria-label="Bộ lọc báo cáo">
+          <label>
+            Từ ngày
+            <input id="date-from" type="date">
+          </label>
+          <label>
+            Đến ngày
+            <input id="date-to" type="date">
+          </label>
+          <button id="apply-filter" class="button button-primary" type="button">Phân tích</button>
+          <button id="refresh-data" class="button button-secondary" type="button">Lấy dữ liệu mới</button>
+          <p id="freshness-text" class="filter-note">Đang xác định ngày dữ liệu gần nhất…</p>
+        </div>
+      </section>
+
+      <section id="loading-state" class="loading-state panel" aria-live="polite">
+        <div class="loader" aria-hidden="true"></div>
+        <div>
+          <strong>Đang đọc các bảng dữ liệu cốt lõi</strong>
+          <p>Campaign, Ad Group, Conversion Action, Device, Network, Plan và Actual Leads.</p>
+        </div>
+      </section>
+
+      <section id="error-state" class="error-state panel hidden" role="alert">
+        <div class="error-icon">!</div>
+        <div>
+          <h2>Chưa đọc được Google Sheets</h2>
+          <p id="error-message">Kiểm tra quyền chia sẻ và Spreadsheet ID trong assets/js/config.js.</p>
+          <ol>
+            <li>Mở Google Sheets → Chia sẻ → Quyền truy cập chung.</li>
+            <li>Chọn “Bất kỳ ai có đường liên kết” → “Người xem”.</li>
+            <li>Bấm “Lấy dữ liệu mới” trên report.</li>
+          </ol>
+        </div>
+      </section>
+
+      <div id="report-content" class="hidden">
+        <section id="setup-alerts" class="setup-alerts" aria-live="polite"></section>
+
+        <section class="executive-grid">
+          <article class="health-card panel">
+            <div class="section-label">SỨC KHỎE TỔNG THỂ</div>
+            <div class="score-wrap">
+              <div id="score-ring" class="score-ring" style="--score: 0">
+                <div>
+                  <strong id="health-score">—</strong>
+                  <small>/100</small>
+                </div>
+              </div>
+              <div class="score-copy">
+                <span id="health-badge" class="level-badge level-neutral">Đang đánh giá</span>
+                <h2 id="health-title">Chưa đủ dữ liệu</h2>
+                <p id="health-summary">Report sẽ tóm tắt điều đáng chú ý nhất tại đây.</p>
+              </div>
+            </div>
+            <div id="signal-counts" class="signal-counts"></div>
+          </article>
+
+          <article class="decision-card panel">
+            <div class="section-label">QUYẾT ĐỊNH ƯU TIÊN #1</div>
+            <span id="top-priority-level" class="level-badge level-neutral">Chờ dữ liệu</span>
+            <h2 id="top-priority-title">Đang phân tích</h2>
+            <p id="top-priority-why" class="decision-why"></p>
+            <div class="decision-action">
+              <strong>Nên làm ngay</strong>
+              <p id="top-priority-action"></p>
+            </div>
+          </article>
+        </section>
+
+        <section>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">KẾT QUẢ KỲ ĐÃ CHỌN</p>
+              <h2>Chỉ số chính</h2>
+            </div>
+            <p id="period-caption" class="section-caption"></p>
+          </div>
+          <div id="kpi-grid" class="kpi-grid"></div>
+        </section>
+
+        <section class="analysis-grid">
+          <article class="panel chart-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">XU HƯỚNG</p>
+                <h2>Chi tiêu và conversions theo ngày</h2>
+              </div>
+              <div class="chart-legend">
+                <span><i class="legend-spend"></i>Chi tiêu</span>
+                <span><i class="legend-conv"></i>Conversions</span>
+              </div>
+            </div>
+            <div id="trend-chart" class="trend-chart" role="img" aria-label="Biểu đồ xu hướng"></div>
+          </article>
+
+          <article class="panel funnel-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">PHỄU HIỆU SUẤT</p>
+                <h2>Từ hiển thị đến kết quả</h2>
+              </div>
+            </div>
+            <div id="funnel-visual" class="funnel-visual"></div>
+            <p id="funnel-note" class="panel-note"></p>
+          </article>
+        </section>
+
+        <section>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">GIẢI THÍCH TỰ ĐỘNG</p>
+              <h2>Điều gì tốt, điều gì cần quan tâm?</h2>
+            </div>
+            <p class="section-caption">Mỗi nhận định đều kèm bằng chứng, lý do và hướng xử lý.</p>
+          </div>
+          <div class="insight-columns">
+            <article class="insight-column panel">
+              <div class="insight-column-title good-title"><span>✓</span><div><strong>Đang tốt</strong><small>Có thể duy trì hoặc mở rộng có kiểm soát</small></div></div>
+              <div id="good-insights" class="insight-list"></div>
+            </article>
+            <article class="insight-column panel">
+              <div class="insight-column-title watch-title"><span>~</span><div><strong>Cần theo dõi</strong><small>Chưa đủ bằng chứng để thay đổi mạnh</small></div></div>
+              <div id="watch-insights" class="insight-list"></div>
+            </article>
+            <article class="insight-column panel">
+              <div class="insight-column-title action-title"><span>!</span><div><strong>Cần hành động</strong><small>Có rủi ro lãng phí hoặc sai hướng tối ưu</small></div></div>
+              <div id="action-insights" class="insight-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">NEXT STEPS</p>
+              <h2>Kế hoạch hành động theo ưu tiên</h2>
+            </div>
+            <p class="section-caption">Ưu tiên dựa trên mức ảnh hưởng, độ chắc chắn và dữ liệu hiện có.</p>
+          </div>
+          <div id="recommendations" class="recommendations"></div>
+        </section>
+
+        <section class="panel performance-panel">
+          <div class="panel-heading performance-heading">
+            <div>
+              <p class="eyebrow">CHI TIẾT HIỆU SUẤT</p>
+              <h2>Nhóm nào đang tạo ra hoặc làm mất hiệu quả?</h2>
+            </div>
+            <label class="table-search">
+              <span class="sr-only">Tìm trong bảng</span>
+              <input id="table-search" type="search" placeholder="Tìm campaign, ad group…">
+            </label>
+          </div>
+          <div id="table-tabs" class="table-tabs" role="tablist">
+            <button class="active" data-table="campaigns" role="tab" type="button">Campaign</button>
+            <button data-table="adgroups" role="tab" type="button">Ad Group</button>
+            <button data-table="assetGroups" role="tab" type="button">PMax Asset Group</button>
+            <button data-table="devices" role="tab" type="button">Device</button>
+            <button data-table="networks" role="tab" type="button">Network</button>
+            <button data-table="conversionActions" role="tab" type="button">Conversion Action</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="performance-head"></thead>
+              <tbody id="performance-body"></tbody>
+            </table>
+          </div>
+          <p id="table-note" class="panel-note"></p>
+        </section>
+
+        <section class="source-panel panel">
+          <div>
+            <p class="eyebrow">MINH BẠCH DỮ LIỆU</p>
+            <h2>Nguồn và độ đầy đủ</h2>
+            <p>Report không thay đổi dữ liệu trong workbook. Mọi phép tính được thực hiện trong trình duyệt.</p>
+          </div>
+          <div id="source-status" class="source-status"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <span id="footer-report-name">Google Ads Intelligence Report</span>
+      <span>·</span>
+      <span>Live Google Sheets · Không lưu token · Không chỉnh sửa workbook</span>
+    </footer>
+  </div>
+
+  <dialog id="method-dialog" class="method-dialog">
+    <form method="dialog" class="method-card">
+      <button class="dialog-close" aria-label="Đóng" value="close">×</button>
+      <p class="eyebrow">PHƯƠNG PHÁP</p>
+      <h2>Report đưa ra nhận định như thế nào?</h2>
+      <div class="method-grid">
+        <div><strong>1. Đối chiếu mục tiêu</strong><p>Budget, Leads, CPL, CTR, CVR và ROAS được lấy từ 04_Plan; dòng có ghi “Dòng mẫu” bị loại trừ.</p></div>
+        <div><strong>2. Yêu cầu đủ bằng chứng</strong><p>Không kết luận mạnh khi một nhóm chưa đạt ngưỡng click, conversion hoặc mức chi tiêu tối thiểu.</p></div>
+        <div><strong>3. Tách Ads conversions và Actual Leads</strong><p>Conversions của nền tảng không mặc nhiên được xem là lead kinh doanh. Actual Leads lấy từ 05_Actual_Leads.</p></div>
+        <div><strong>4. Xếp hạng hành động</strong><p>Rủi ro tracking và chi tiêu không tạo kết quả được ưu tiên trước tối ưu nhỏ về CTR hoặc CPC.</p></div>
+      </div>
+      <div id="method-thresholds" class="threshold-list"></div>
+      <p class="method-disclaimer">Khuyến nghị là hệ thống hỗ trợ quyết định. Hãy kiểm tra chất lượng lead, thay đổi tracking và bối cảnh kinh doanh trước khi tăng/giảm ngân sách lớn.</p>
+    </form>
+  </dialog>
+
+  <script src="assets/js/config.js"></script>
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
