@@ -2,13 +2,7 @@ import { loadReportData } from './data.js';
 import { analyzeReport, getDataBounds, getDefaultRange } from './analysis.js';
 
 const config = window.REPORT_CONFIG;
-const state = {
-  bundle: null,
-  analysis: null,
-  activeTable: 'campaigns',
-  search: ''
-};
-
+const state = { bundle: null, analysis: null, activeTable: 'campaigns', search: '' };
 const el = id => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -25,11 +19,6 @@ function formatInteger(value) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(value);
 }
 
-function formatDecimal(value) {
-  if (value === null || value === undefined) return '—';
-  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value);
-}
-
 function formatCurrency(value, compact = false) {
   if (value === null || value === undefined) return '—';
   const options = compact && Math.abs(value) >= 1000000
@@ -43,28 +32,26 @@ function formatPercent(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(value);
 }
 
-function formatMultiple(value) {
-  if (value === null || value === undefined) return '—';
-  return `${new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}x`;
-}
-
 function formatDate(key) {
   if (!key) return '—';
   const [year, month, day] = key.split('-');
   return `${day}/${month}/${year}`;
 }
 
+function formatChange(change) {
+  if (change === null || change === undefined) return 'Không có kỳ trước';
+  return `${change >= 0 ? '+' : ''}${Math.round(change * 100)}%`;
+}
+
 function formatKpi(kpi) {
   if (kpi.value === null || kpi.value === undefined) return '—';
   if (kpi.format === 'currency') return formatCurrency(kpi.value, true);
   if (kpi.format === 'percent') return formatPercent(kpi.value);
-  if (kpi.format === 'multiple') return formatMultiple(kpi.value);
-  if (kpi.format === 'decimal') return formatDecimal(kpi.value);
   return formatInteger(kpi.value);
 }
 
 function levelLabel(level) {
-  return ({ good: 'Đang tốt', watch: 'Cần theo dõi', action: 'Cần hành động', neutral: 'Tham chiếu' })[level] || 'Tham chiếu';
+  return ({ good: 'Đang tốt', watch: 'Cần theo dõi', action: 'Cần hành động', neutral: 'Ổn định' })[level] || 'Ổn định';
 }
 
 function setConnection(level, text) {
@@ -86,16 +73,6 @@ function showError(message) {
   el('error-state').classList.remove('hidden');
   el('error-message').textContent = message;
   setConnection('error', 'Lỗi kết nối Sheet');
-}
-
-function renderSetupAlerts(alerts) {
-  const container = el('setup-alerts');
-  container.innerHTML = alerts.map(alert => `
-    <article class="setup-alert ${escapeHtml(alert.level)}">
-      <span class="setup-alert-icon">!</span>
-      <div><strong>${escapeHtml(alert.title)}</strong><p>${escapeHtml(alert.text)}</p></div>
-    </article>
-  `).join('');
 }
 
 function renderExecutive(analysis) {
@@ -145,17 +122,16 @@ function renderTrend(daily) {
     container.innerHTML = '<div class="empty-visual">Không có dữ liệu trong kỳ đã chọn.</div>';
     return;
   }
-
   const width = 920;
   const height = 290;
   const pad = { left: 54, right: 28, top: 18, bottom: 38 };
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
   const maxCost = Math.max(...daily.map(item => item.cost), 1);
-  const maxConv = Math.max(...daily.map(item => item.conversions), 1);
+  const maxClicks = Math.max(...daily.map(item => item.clicks), 1);
   const xAt = index => pad.left + (daily.length === 1 ? innerW / 2 : index / (daily.length - 1) * innerW);
   const spendPoints = daily.map((item, index) => ({ x: xAt(index), y: pad.top + innerH - item.cost / maxCost * innerH }));
-  const convPoints = daily.map((item, index) => ({ x: xAt(index), y: pad.top + innerH - item.conversions / maxConv * innerH }));
+  const clickPoints = daily.map((item, index) => ({ x: xAt(index), y: pad.top + innerH - item.clicks / maxClicks * innerH }));
   const areaPath = `${chartPath(spendPoints)} L ${spendPoints[spendPoints.length - 1].x} ${pad.top + innerH} L ${spendPoints[0].x} ${pad.top + innerH} Z`;
   const grid = [0, .25, .5, .75, 1].map(ratio => {
     const y = pad.top + innerH - ratio * innerH;
@@ -166,42 +142,34 @@ function renderTrend(daily) {
     ? `<text class="axis-label" x="${xAt(index)}" y="${height - 9}" text-anchor="middle">${escapeHtml(formatDate(item.date).slice(0, 5))}</text>`
     : '').join('');
   const spendDots = spendPoints.map((point, index) => `<circle class="chart-dot" cx="${point.x}" cy="${point.y}" r="3.5" fill="var(--blue)"><title>${escapeHtml(formatDate(daily[index].date))}: ${escapeHtml(formatCurrency(daily[index].cost))}</title></circle>`).join('');
-  const convDots = convPoints.map((point, index) => `<circle class="chart-dot" cx="${point.x}" cy="${point.y}" r="3" fill="var(--green)"><title>${escapeHtml(formatDate(daily[index].date))}: ${escapeHtml(formatDecimal(daily[index].conversions))} conversions</title></circle>`).join('');
-
+  const clickDots = clickPoints.map((point, index) => `<circle class="chart-dot" cx="${point.x}" cy="${point.y}" r="3" fill="var(--green)"><title>${escapeHtml(formatDate(daily[index].date))}: ${escapeHtml(formatInteger(daily[index].clicks))} clicks</title></circle>`).join('');
   container.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Xu hướng chi tiêu và conversions">
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Xu hướng chi tiêu và clicks">
       <defs><linearGradient id="spendGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#6aa7ff" stop-opacity=".28"/><stop offset="1" stop-color="#6aa7ff" stop-opacity="0"/></linearGradient></defs>
-      ${grid}
-      <path class="spend-area" d="${areaPath}"></path>
+      ${grid}<path class="spend-area" d="${areaPath}"></path>
       <path class="spend-line" d="${chartPath(spendPoints)}"></path>
-      <path class="conv-line" d="${chartPath(convPoints)}"></path>
-      ${spendDots}${convDots}${labels}
+      <path class="click-line" d="${chartPath(clickPoints)}"></path>
+      ${spendDots}${clickDots}${labels}
     </svg>
   `;
 }
 
-function renderFunnel(analysis) {
-  const { metrics, leads } = analysis;
-  const stages = [
-    { label: 'Impressions', value: metrics.impressions },
-    { label: 'Clicks', value: metrics.clicks },
-    { label: 'Ads Conv.', value: metrics.conversions }
-  ];
-  if (leads.configured) stages.push({ label: 'Actual Leads', value: leads.count });
-  const max = Math.max(...stages.map(stage => stage.value), 1);
-  el('funnel-visual').innerHTML = stages.map(stage => {
-    const width = stage.value ? 5 + 95 * Math.log10(1 + stage.value) / Math.log10(1 + max) : 0;
-    return `
-      <div class="funnel-row">
-        <span class="funnel-label">${escapeHtml(stage.label)}</span>
-        <div class="funnel-track"><div class="funnel-bar" style="width:${width.toFixed(1)}%"></div></div>
-        <strong class="funnel-value">${escapeHtml(formatDecimal(stage.value))}</strong>
-      </div>
-    `;
-  }).join('');
-  el('funnel-note').textContent = leads.configured
-    ? 'Thanh dùng thang log để các tầng có quy mô rất khác nhau vẫn nhìn thấy được. Actual Leads lấy từ 05_Actual_Leads.'
-    : 'Ads Conversions là kết quả nền tảng. Actual Leads chưa hiển thị vì 05_Actual_Leads vẫn chưa có dữ liệu thật.';
+function renderCampaignMix(campaigns) {
+  const container = el('funnel-visual');
+  if (!campaigns.length) {
+    container.innerHTML = '<div class="insight-empty">Không có campaign trong kỳ.</div>';
+    el('funnel-note').textContent = '';
+    return;
+  }
+  const max = Math.max(...campaigns.map(item => item.cost), 1);
+  container.innerHTML = campaigns.slice(0, 6).map(item => `
+    <div class="funnel-row">
+      <span class="funnel-label" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+      <div class="funnel-track"><div class="funnel-bar" style="width:${(item.cost / max * 100).toFixed(1)}%"></div></div>
+      <strong class="funnel-value">${escapeHtml(formatCurrency(item.cost, true))}</strong>
+    </div>
+  `).join('');
+  el('funnel-note').textContent = 'Thanh thể hiện spend tương đối. Tỷ trọng cao cần được đọc cùng CTR, CPC và xu hướng kỳ trước.';
 }
 
 function renderInsightList(level, items) {
@@ -215,7 +183,35 @@ function renderInsightList(level, items) {
       <h3>${escapeHtml(item.title)}</h3>
       <span class="insight-value">${escapeHtml(item.value)}</span>
       <p>${escapeHtml(item.why)}</p>
-      <details><summary>Next step đề xuất</summary><p>${escapeHtml(item.next)}</p></details>
+      <details><summary>Điều chỉnh đề xuất</summary><p>${escapeHtml(item.next)}</p></details>
+    </article>
+  `).join('');
+}
+
+function renderCampaignReview(campaigns) {
+  el('campaign-review').innerHTML = campaigns.map(campaign => `
+    <article class="campaign-card panel">
+      <div class="campaign-card-head">
+        <div>
+          <span class="campaign-type">${escapeHtml(campaign.secondary || 'OTHER')}</span>
+          <h3>${escapeHtml(campaign.name)}</h3>
+          <small>${escapeHtml(campaign.sourceStatus || '')}</small>
+        </div>
+        <div class="campaign-score level-${escapeHtml(campaign.assessment.level)}">
+          <strong>${escapeHtml(campaign.assessment.score)}</strong><span>/100</span>
+        </div>
+      </div>
+      <div class="campaign-metrics">
+        <div><small>Spend</small><strong>${escapeHtml(formatCurrency(campaign.cost, true))}</strong><span>${Math.round(campaign.spendShare * 100)}% tổng spend</span></div>
+        <div><small>CTR</small><strong>${escapeHtml(formatPercent(campaign.ctr))}</strong><span>${escapeHtml(formatChange(campaign.trend.ctr))} vs kỳ trước</span></div>
+        <div><small>CPC</small><strong>${escapeHtml(formatCurrency(campaign.cpc))}</strong><span>${escapeHtml(formatChange(campaign.trend.cpc))} vs kỳ trước</span></div>
+        <div><small>Clicks</small><strong>${escapeHtml(formatInteger(campaign.clicks))}</strong><span>${escapeHtml(formatChange(campaign.trend.clicks))} vs kỳ trước</span></div>
+      </div>
+      <div class="campaign-verdict">
+        <span class="level-badge level-${escapeHtml(campaign.assessment.level)}">${escapeHtml(campaign.assessment.label)}</span>
+        <p><strong>Vì sao:</strong> ${escapeHtml(campaign.assessment.reason)}</p>
+        <p><strong>Cần chỉnh:</strong> ${escapeHtml(campaign.assessment.action)}</p>
+      </div>
     </article>
   `).join('');
 }
@@ -236,7 +232,7 @@ function renderRecommendations(items) {
 
 function tableStatus(assessment) {
   const level = assessment?.level || 'neutral';
-  const label = assessment?.label || 'Tham chiếu';
+  const label = assessment?.label || 'Ổn định';
   return `<span class="table-status level-${escapeHtml(level)}" title="${escapeHtml(assessment?.reason || '')}">${escapeHtml(label)}</span>`;
 }
 
@@ -245,42 +241,24 @@ function renderPerformanceTable() {
   const key = state.activeTable;
   const search = state.search.trim().toLowerCase();
   let rows = state.analysis.tables[key] || [];
+  rows = rows.filter(row => !search || `${row.name || ''} ${row.secondary || ''}`.toLowerCase().includes(search)).slice(0, 100);
 
-  rows = rows.filter(row => {
-    if (!search) return true;
-    return `${row.name || ''} ${row.secondary || ''} ${row.category || ''}`.toLowerCase().includes(search);
-  }).slice(0, 100);
-
-  if (key === 'conversionActions') {
-    el('performance-head').innerHTML = '<tr><th>Conversion Action</th><th>Category</th><th>Conversions</th><th>All Conv.</th><th>Value</th><th>Đánh giá</th></tr>';
-    el('performance-body').innerHTML = rows.length ? rows.map(row => `
-      <tr>
-        <td class="entity-cell"><strong>${escapeHtml(row.name)}</strong></td>
-        <td>${escapeHtml(row.category)}</td>
-        <td>${escapeHtml(formatDecimal(row.conversions))}</td>
-        <td>${escapeHtml(formatDecimal(row.allConversions))}</td>
-        <td>${escapeHtml(formatCurrency(row.value))}</td>
-        <td>${tableStatus(row.assessment)}</td>
-      </tr>
-    `).join('') : '<tr><td class="no-rows" colspan="6">Không có dữ liệu phù hợp.</td></tr>';
-  } else {
-    el('performance-head').innerHTML = '<tr><th>Nhóm</th><th>Loại / Campaign</th><th>Cost</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Conversions</th><th>CVR</th><th>CPL</th><th>Đánh giá</th></tr>';
-    el('performance-body').innerHTML = rows.length ? rows.map(row => `
-      <tr>
-        <td class="entity-cell"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.sourceStatus || row.id)}</small></td>
-        <td>${escapeHtml(row.secondary || '—')}</td>
-        <td>${escapeHtml(formatCurrency(row.cost))}</td>
-        <td>${escapeHtml(formatInteger(row.impressions))}</td>
-        <td>${escapeHtml(formatInteger(row.clicks))}</td>
-        <td>${escapeHtml(formatPercent(row.ctr))}</td>
-        <td>${escapeHtml(formatDecimal(row.conversions))}</td>
-        <td>${escapeHtml(formatPercent(row.cvr))}</td>
-        <td>${row.conversions ? escapeHtml(formatCurrency(row.cpl)) : '—'}</td>
-        <td>${tableStatus(row.assessment)}</td>
-      </tr>
-    `).join('') : '<tr><td class="no-rows" colspan="10">Không có dữ liệu phù hợp.</td></tr>';
-  }
-
+  el('performance-head').innerHTML = '<tr><th>Nhóm</th><th>Loại / Campaign</th><th>Media Score</th><th>Spend</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>CPC</th><th>CPM</th><th>Xu hướng</th><th>Đánh giá</th></tr>';
+  el('performance-body').innerHTML = rows.length ? rows.map(row => `
+    <tr>
+      <td class="entity-cell"><strong>${escapeHtml(row.name || row.id)}</strong><small>${escapeHtml(row.sourceStatus || row.adStrength || row.id)}</small></td>
+      <td>${escapeHtml(row.secondary || '—')}</td>
+      <td>${escapeHtml(row.assessment.score)}/100</td>
+      <td>${escapeHtml(formatCurrency(row.cost))}</td>
+      <td>${escapeHtml(formatInteger(row.impressions))}</td>
+      <td>${escapeHtml(formatInteger(row.clicks))}</td>
+      <td>${escapeHtml(formatPercent(row.ctr))}</td>
+      <td>${row.clicks ? escapeHtml(formatCurrency(row.cpc)) : '—'}</td>
+      <td>${row.impressions ? escapeHtml(formatCurrency(row.cpm)) : '—'}</td>
+      <td>CTR ${escapeHtml(formatChange(row.trend.ctr))} · CPC ${escapeHtml(formatChange(row.trend.cpc))}</td>
+      <td>${tableStatus(row.assessment)}</td>
+    </tr>
+  `).join('') : '<tr><td class="no-rows" colspan="11">Không có dữ liệu phù hợp.</td></tr>';
   el('table-note').textContent = state.analysis.tableNotes[key] || '';
 }
 
@@ -296,12 +274,13 @@ function renderSources(bundle) {
 function renderMethod() {
   const t = config.thresholds;
   el('method-thresholds').innerHTML = [
-    `Tối thiểu ${t.minClicksForDecision} clicks để kết luận`,
-    `Tối thiểu ${t.minConversionsForCplDecision} conversions để đánh giá CPL`,
-    `CPL watch > ${Math.round(t.cplWatchMultiplier * 100)}% target`,
-    `Budget pacing an toàn ${Math.round(t.budgetPacingLow * 100)}–${Math.round(t.budgetPacingHigh * 100)}%`,
-    `Lead mismatch cảnh báo > ${Math.round(t.leadMismatchPct * 100)}%`,
-    `Lost IS Budget watch ≥ ${Math.round(t.lostBudgetShareWatch * 100)}%`
+    `Tối thiểu ${formatInteger(t.minImpressionsForDecision)} impressions`,
+    `Tối thiểu ${t.minClicksForDecision} clicks`,
+    `CTR thấp khi < ${Math.round(t.ctrLowVsPeer * 100)}% benchmark`,
+    `CPC cao khi > ${Math.round(t.cpcHighVsPeer * 100)}% benchmark`,
+    `Biến động watch ≥ ${Math.round(t.trendWatch * 100)}%`,
+    `Spend concentration watch ≥ ${Math.round(t.spendConcentrationWatch * 100)}%`,
+    `Invalid Click Rate watch ≥ ${Math.round(t.invalidClickRateWatch * 100)}%`
   ].map(item => `<span>${escapeHtml(item)}</span>`).join('');
 }
 
@@ -312,19 +291,18 @@ function renderReport() {
     window.alert('Vui lòng chọn khoảng ngày hợp lệ.');
     return;
   }
-
   state.analysis = analyzeReport(state.bundle.data, { from, to }, config);
   const analysis = state.analysis;
-  el('period-caption').textContent = `${formatDate(from)} – ${formatDate(to)} · ${analysis.period.days} ngày`;
-  el('freshness-text').textContent = `Dữ liệu Campaign mới nhất: ${formatDate(analysis.period.dataMax)}${analysis.period.daysBehind ? ` · chậm ${analysis.period.daysBehind} ngày` : ' · đúng nhịp'}`;
-  renderSetupAlerts(analysis.setupAlerts);
+  el('period-caption').textContent = `${formatDate(from)} – ${formatDate(to)} · so với ${formatDate(analysis.period.previousFrom)} – ${formatDate(analysis.period.previousTo)}`;
+  el('freshness-text').textContent = `Campaign Daily mới nhất: ${formatDate(analysis.period.dataMax)}${analysis.period.daysBehind ? ` · chậm ${analysis.period.daysBehind} ngày` : ' · đúng nhịp'}`;
   renderExecutive(analysis);
   renderKpis(analysis.kpis);
   renderTrend(analysis.daily);
-  renderFunnel(analysis);
+  renderCampaignMix(analysis.campaignReviews);
   renderInsightList('good', analysis.insights.good);
   renderInsightList('watch', analysis.insights.watch);
   renderInsightList('action', analysis.insights.action);
+  renderCampaignReview(analysis.campaignReviews);
   renderRecommendations(analysis.recommendations);
   renderPerformanceTable();
   renderSources(state.bundle);
@@ -339,7 +317,7 @@ async function load(forceRefresh = false) {
     state.bundle = await loadReportData(config, forceRefresh);
     const bounds = getDataBounds(state.bundle.data.campaigns || []);
     if (!bounds.max) throw new Error('07_GAds_Campaign_Daily chưa có dòng dữ liệu hợp lệ.');
-    const defaultRange = getDefaultRange(state.bundle.data.campaigns || [], state.bundle.data.plan || [], config.defaultLookbackDays);
+    const defaultRange = getDefaultRange(state.bundle.data.campaigns || [], config.defaultLookbackDays);
     el('date-from').min = bounds.min;
     el('date-from').max = bounds.max;
     el('date-to').min = bounds.min;
@@ -361,7 +339,6 @@ function init() {
   el('report-name').textContent = config.reportName;
   el('footer-report-name').textContent = config.reportName;
   renderMethod();
-
   el('apply-filter').addEventListener('click', renderReport);
   el('refresh-data').addEventListener('click', () => load(true));
   el('method-button').addEventListener('click', () => el('method-dialog').showModal());
