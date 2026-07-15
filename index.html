@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Google Ads Intelligence Report — tự động phân tích dữ liệu Google Ads từ Google Sheets.">
+  <meta name="description" content="Anfin Google Ads Media Review — đánh giá delivery, traffic efficiency và xu hướng campaign từ Google Sheets.">
   <meta name="theme-color" content="#0b1220">
-  <title>Google Ads Intelligence Report</title>
+  <title>Anfin Google Ads Media Review</title>
   <link rel="preconnect" href="https://docs.google.com">
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
@@ -17,8 +17,8 @@
           <span></span><span></span><span></span>
         </span>
         <span>
-          <strong id="report-name">Google Ads Intelligence</strong>
-          <small>Decision report · Google Sheets live data</small>
+          <strong id="report-name">Anfin Google Ads Media Review</strong>
+          <small>Delivery · Traffic efficiency · Campaign actions</small>
         </span>
       </a>
       <div class="topbar-actions">
@@ -33,11 +33,11 @@
     <main id="top">
       <section class="hero panel">
         <div class="hero-copy">
-          <p class="eyebrow">BÁO CÁO RA QUYẾT ĐỊNH</p>
-          <h1>Không chỉ xem số — hiểu điều gì đang tốt và phải làm gì tiếp theo.</h1>
+          <p class="eyebrow">MEDIA PERFORMANCE REVIEW</p>
+          <h1>Campaign nào đang tạo traffic hiệu quả và campaign nào cần chỉnh?</h1>
           <p class="hero-description">
-            Dữ liệu được đọc trực tiếp từ workbook Google Ads, đối chiếu với Plan và Actual Leads,
-            sau đó chuyển thành cảnh báo, nguyên nhân và hành động ưu tiên.
+            Report đọc trực tiếp dữ liệu Google Ads và đánh giá Spend, Impressions, Clicks, CTR,
+            CPC, CPM, Interaction, Engagement, chất lượng click và xu hướng so với kỳ trước.
           </p>
         </div>
         <div class="filter-card" aria-label="Bộ lọc báo cáo">
@@ -59,7 +59,7 @@
         <div class="loader" aria-hidden="true"></div>
         <div>
           <strong>Đang đọc các bảng dữ liệu cốt lõi</strong>
-          <p>Campaign, Ad Group, Conversion Action, Device, Network, Plan và Actual Leads.</p>
+          <p>Campaign, Ad Group, Ads, PMax Asset Group, Device, Network và Video.</p>
         </div>
       </section>
 
@@ -77,11 +77,9 @@
       </section>
 
       <div id="report-content" class="hidden">
-        <section id="setup-alerts" class="setup-alerts" aria-live="polite"></section>
-
         <section class="executive-grid">
           <article class="health-card panel">
-            <div class="section-label">SỨC KHỎE TỔNG THỂ</div>
+            <div class="section-label">SỨC KHỎE MEDIA</div>
             <div class="score-wrap">
               <div id="score-ring" class="score-ring" style="--score: 0">
                 <div>
@@ -91,7 +89,7 @@
               </div>
               <div class="score-copy">
                 <span id="health-badge" class="level-badge level-neutral">Đang đánh giá</span>
-                <h2 id="health-title">Chưa đủ dữ liệu</h2>
+                <h2 id="health-title">Đang đọc hiệu suất</h2>
                 <p id="health-summary">Report sẽ tóm tắt điều đáng chú ý nhất tại đây.</p>
               </div>
             </div>
@@ -126,11 +124,11 @@
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">XU HƯỚNG</p>
-                <h2>Chi tiêu và conversions theo ngày</h2>
+                <h2>Chi tiêu và clicks theo ngày</h2>
               </div>
               <div class="chart-legend">
                 <span><i class="legend-spend"></i>Chi tiêu</span>
-                <span><i class="legend-conv"></i>Conversions</span>
+                <span><i class="legend-clicks"></i>Clicks</span>
               </div>
             </div>
             <div id="trend-chart" class="trend-chart" role="img" aria-label="Biểu đồ xu hướng"></div>
@@ -139,8 +137,8 @@
           <article class="panel funnel-panel">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">PHỄU HIỆU SUẤT</p>
-                <h2>Từ hiển thị đến kết quả</h2>
+                <p class="eyebrow">BUDGET MIX</p>
+                <h2>Phân bổ chi tiêu theo campaign</h2>
               </div>
             </div>
             <div id="funnel-visual" class="funnel-visual"></div>
@@ -158,7 +156,7 @@
           </div>
           <div class="insight-columns">
             <article class="insight-column panel">
-              <div class="insight-column-title good-title"><span>✓</span><div><strong>Đang tốt</strong><small>Có thể duy trì hoặc mở rộng có kiểm soát</small></div></div>
+              <div class="insight-column-title good-title"><span>✓</span><div><strong>Đang tốt</strong><small>Duy trì và tiếp tục thử nghiệm có kiểm soát</small></div></div>
               <div id="good-insights" class="insight-list"></div>
             </article>
             <article class="insight-column panel">
@@ -166,7 +164,7 @@
               <div id="watch-insights" class="insight-list"></div>
             </article>
             <article class="insight-column panel">
-              <div class="insight-column-title action-title"><span>!</span><div><strong>Cần hành động</strong><small>Có rủi ro lãng phí hoặc sai hướng tối ưu</small></div></div>
+              <div class="insight-column-title action-title"><span>!</span><div><strong>Cần hành động</strong><small>Traffic efficiency đang giảm hoặc chi phí tăng</small></div></div>
               <div id="action-insights" class="insight-list"></div>
             </article>
           </div>
@@ -175,8 +173,19 @@
         <section>
           <div class="section-heading">
             <div>
+              <p class="eyebrow">CAMPAIGN REVIEW</p>
+              <h2>Hiệu suất từng campaign đang chạy</h2>
+            </div>
+            <p class="section-caption">Đánh giá delivery và traffic efficiency; mỗi campaign có lý do và điều chỉnh đề xuất.</p>
+          </div>
+          <div id="campaign-review" class="campaign-review"></div>
+        </section>
+
+        <section>
+          <div class="section-heading">
+            <div>
               <p class="eyebrow">NEXT STEPS</p>
-              <h2>Kế hoạch hành động theo ưu tiên</h2>
+              <h2>Điều chỉnh đề xuất theo ưu tiên</h2>
             </div>
             <p class="section-caption">Ưu tiên dựa trên mức ảnh hưởng, độ chắc chắn và dữ liệu hiện có.</p>
           </div>
@@ -197,10 +206,10 @@
           <div id="table-tabs" class="table-tabs" role="tablist">
             <button class="active" data-table="campaigns" role="tab" type="button">Campaign</button>
             <button data-table="adgroups" role="tab" type="button">Ad Group</button>
+            <button data-table="ads" role="tab" type="button">Ads</button>
             <button data-table="assetGroups" role="tab" type="button">PMax Asset Group</button>
             <button data-table="devices" role="tab" type="button">Device</button>
             <button data-table="networks" role="tab" type="button">Network</button>
-            <button data-table="conversionActions" role="tab" type="button">Conversion Action</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -215,7 +224,7 @@
           <div>
             <p class="eyebrow">MINH BẠCH DỮ LIỆU</p>
             <h2>Nguồn và độ đầy đủ</h2>
-            <p>Report không thay đổi dữ liệu trong workbook. Mọi phép tính được thực hiện trong trình duyệt.</p>
+            <p>Report không thay đổi workbook. Mọi benchmark và so sánh kỳ trước được tính trong trình duyệt.</p>
           </div>
           <div id="source-status" class="source-status"></div>
         </section>
@@ -223,7 +232,7 @@
     </main>
 
     <footer>
-      <span id="footer-report-name">Google Ads Intelligence Report</span>
+      <span id="footer-report-name">Anfin Google Ads Media Review</span>
       <span>·</span>
       <span>Live Google Sheets · Không lưu token · Không chỉnh sửa workbook</span>
     </footer>
@@ -235,13 +244,13 @@
       <p class="eyebrow">PHƯƠNG PHÁP</p>
       <h2>Report đưa ra nhận định như thế nào?</h2>
       <div class="method-grid">
-        <div><strong>1. Đối chiếu mục tiêu</strong><p>Budget, Leads, CPL, CTR, CVR và ROAS được lấy từ 04_Plan; dòng có ghi “Dòng mẫu” bị loại trừ.</p></div>
-        <div><strong>2. Yêu cầu đủ bằng chứng</strong><p>Không kết luận mạnh khi một nhóm chưa đạt ngưỡng click, conversion hoặc mức chi tiêu tối thiểu.</p></div>
-        <div><strong>3. Tách Ads conversions và Actual Leads</strong><p>Conversions của nền tảng không mặc nhiên được xem là lead kinh doanh. Actual Leads lấy từ 05_Actual_Leads.</p></div>
-        <div><strong>4. Xếp hạng hành động</strong><p>Rủi ro tracking và chi tiêu không tạo kết quả được ưu tiên trước tối ưu nhỏ về CTR hoặc CPC.</p></div>
+        <div><strong>1. Benchmark đúng cấp</strong><p>CTR và CPC được so với nhóm cùng campaign type khi đủ dữ liệu; nếu không, dùng trung bình tài khoản.</p></div>
+        <div><strong>2. So sánh kỳ trước</strong><p>Kỳ đang chọn được so với khoảng thời gian liền trước có cùng số ngày để phát hiện xu hướng CTR, CPC, CPM và click volume.</p></div>
+        <div><strong>3. Yêu cầu đủ volume</strong><p>Không kết luận mạnh khi campaign chưa đạt ngưỡng impressions hoặc clicks tối thiểu.</p></div>
+        <div><strong>4. Đọc theo campaign type</strong><p>Search, App, Demand Gen và Performance Max có hành vi traffic khác nhau; CTR chỉ được xem là tốt trong đúng bối cảnh.</p></div>
       </div>
       <div id="method-thresholds" class="threshold-list"></div>
-      <p class="method-disclaimer">Khuyến nghị là hệ thống hỗ trợ quyết định. Hãy kiểm tra chất lượng lead, thay đổi tracking và bối cảnh kinh doanh trước khi tăng/giảm ngân sách lớn.</p>
+      <p class="method-disclaimer">Đây là đánh giá media quality, không phải kết luận về kết quả kinh doanh. Hãy thay đổi từng bước và quan sát ít nhất một chu kỳ dữ liệu trước khi điều chỉnh tiếp.</p>
     </form>
   </dialog>
 
