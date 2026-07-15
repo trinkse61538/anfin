@@ -26,6 +26,8 @@
           <span class="status-dot"></span>
           Đang kết nối dữ liệu
         </span>
+        <button id="export-button" class="button button-ghost" type="button">Xuất CSV</button>
+        <button id="print-button" class="button button-ghost" type="button">In / PDF</button>
         <button id="method-button" class="button button-ghost" type="button">Cách chấm điểm</button>
       </div>
     </header>
@@ -41,6 +43,14 @@
           </p>
         </div>
         <div class="filter-card" aria-label="Bộ lọc báo cáo">
+          <div id="quick-ranges" class="quick-ranges" aria-label="Chọn nhanh khoảng thời gian">
+            <button type="button" data-days="3">3 ngày</button>
+            <button type="button" data-days="7">7 ngày</button>
+            <button type="button" data-days="14">14 ngày</button>
+            <button type="button" data-days="30">30 ngày</button>
+            <button type="button" data-days="90">90 ngày</button>
+            <button type="button" data-range="mtd">Tháng này</button>
+          </div>
           <label>
             Từ ngày
             <input id="date-from" type="date">
@@ -49,8 +59,17 @@
             Đến ngày
             <input id="date-to" type="date">
           </label>
+          <label>
+            Campaign type
+            <select id="campaign-type"><option value="ALL">Tất cả loại</option></select>
+          </label>
+          <label>
+            Campaign
+            <select id="campaign-select"><option value="ALL">Tất cả campaign</option></select>
+          </label>
           <button id="apply-filter" class="button button-primary" type="button">Phân tích</button>
           <button id="refresh-data" class="button button-secondary" type="button">Lấy dữ liệu mới</button>
+          <button id="reset-filters" class="button button-ghost" type="button">Đặt lại bộ lọc</button>
           <p id="freshness-text" class="filter-note">Đang xác định ngày dữ liệu gần nhất…</p>
         </div>
       </section>
@@ -124,11 +143,16 @@
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">XU HƯỚNG</p>
-                <h2>Chi tiêu và clicks theo ngày</h2>
+                <h2 id="trend-title">Chi tiêu và clicks theo ngày</h2>
               </div>
-              <div class="chart-legend">
-                <span><i class="legend-spend"></i>Chi tiêu</span>
-                <span><i class="legend-clicks"></i>Clicks</span>
+              <div class="chart-controls">
+                <div id="chart-metric-tabs" class="chart-metric-tabs" aria-label="Chọn chỉ số biểu đồ">
+                  <button class="active" type="button" data-chart="traffic">Traffic</button>
+                  <button type="button" data-chart="ctr">CTR</button>
+                  <button type="button" data-chart="cpc">CPC</button>
+                  <button type="button" data-chart="cpm">CPM</button>
+                </div>
+                <div id="chart-legend" class="chart-legend"></div>
               </div>
             </div>
             <div id="trend-chart" class="trend-chart" role="img" aria-label="Biểu đồ xu hướng"></div>
@@ -198,10 +222,32 @@
               <p class="eyebrow">CHI TIẾT HIỆU SUẤT</p>
               <h2>Nhóm nào đang tạo ra hoặc làm mất hiệu quả?</h2>
             </div>
-            <label class="table-search">
-              <span class="sr-only">Tìm trong bảng</span>
-              <input id="table-search" type="search" placeholder="Tìm campaign, ad group…">
-            </label>
+            <div class="performance-tools">
+              <label class="table-select">
+                <span>Trạng thái</span>
+                <select id="table-status">
+                  <option value="ALL">Tất cả</option>
+                  <option value="good">Media tốt</option>
+                  <option value="neutral">Ổn định</option>
+                  <option value="watch">Cần chỉnh</option>
+                  <option value="action">Ưu tiên xử lý</option>
+                </select>
+              </label>
+              <label class="table-select">
+                <span>Sắp xếp</span>
+                <select id="table-sort">
+                  <option value="cost">Spend cao nhất</option>
+                  <option value="score">Media Score cao nhất</option>
+                  <option value="clicks">Clicks cao nhất</option>
+                  <option value="ctr">CTR cao nhất</option>
+                  <option value="cpc">CPC thấp nhất</option>
+                </select>
+              </label>
+              <label class="table-search">
+                <span class="sr-only">Tìm trong bảng</span>
+                <input id="table-search" type="search" placeholder="Tìm campaign, ad group…">
+              </label>
+            </div>
           </div>
           <div id="table-tabs" class="table-tabs" role="tablist">
             <button class="active" data-table="campaigns" role="tab" type="button">Campaign</button>
