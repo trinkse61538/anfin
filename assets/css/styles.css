@@ -42,7 +42,7 @@ body {
   line-height: 1.5;
 }
 
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 
 button { color: inherit; }
 
@@ -109,7 +109,7 @@ a { color: inherit; text-decoration: none; }
 .brand-mark span:nth-child(2) { height: 18px; }
 .brand-mark span:nth-child(3) { height: 13px; opacity: .82; }
 
-.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 
 .status-pill, .level-badge, .mini-status {
   display: inline-flex;
@@ -213,7 +213,7 @@ main { padding: 34px 0 48px; }
   letter-spacing: .06em;
 }
 
-input[type="date"], input[type="search"] {
+input[type="date"], input[type="search"], select {
   width: 100%;
   min-height: 43px;
   border: 1px solid var(--border-strong);
@@ -224,7 +224,22 @@ input[type="date"], input[type="search"] {
   outline: none;
 }
 
-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 255, .12); }
+select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 18px, calc(100% - 11px) 18px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; }
+input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 255, .12); outline: none; }
+.quick-ranges { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 7px; }
+.quick-ranges button, .chart-metric-tabs button {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255,255,255,.025);
+  color: var(--muted);
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+.quick-ranges button:hover, .chart-metric-tabs button:hover { color: var(--text); border-color: var(--border-strong); }
+.quick-ranges button.active, .chart-metric-tabs button.active { background: #173254; border-color: rgba(106,167,255,.5); color: var(--text); }
+#reset-filters { grid-column: 1 / -1; }
 .filter-note { grid-column: 1 / -1; margin: 2px 0 0; color: var(--muted); font-size: 12px; }
 
 .loading-state, .error-state {
@@ -322,6 +337,8 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 25
 
 .analysis-grid { display: grid; grid-template-columns: 1.35fr .65fr; gap: 20px; }
 .chart-panel, .funnel-panel, .performance-panel, .source-panel { padding: clamp(20px, 3vw, 30px); }
+.chart-controls { display: grid; justify-items: end; gap: 8px; }
+.chart-metric-tabs { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .chart-legend { display: flex; gap: 16px; color: var(--muted); font-size: 11px; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .chart-legend i { width: 14px; height: 3px; border-radius: 3px; }
@@ -334,6 +351,7 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 25
 .spend-area { fill: url(#spendGradient); }
 .spend-line { fill: none; stroke: var(--blue); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .click-line { fill: none; stroke: var(--green); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.metric-line { fill: none; stroke-linejoin: round; stroke-linecap: round; }
 .chart-dot { stroke: #0d1b2e; stroke-width: 2; }
 .empty-visual { height: 260px; display: grid; place-items: center; color: var(--muted); text-align: center; }
 
@@ -387,6 +405,8 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 25
 .campaign-verdict { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .campaign-verdict p { margin: 9px 0 0; color: var(--muted-strong); font-size: 12px; }
 .campaign-verdict p strong { color: var(--text); }
+.campaign-focus-button { margin-top: 13px; border: 1px solid rgba(106,167,255,.38); border-radius: 9px; background: rgba(106,167,255,.08); color: var(--blue); padding: 8px 11px; cursor: pointer; font-size: 11px; font-weight: 800; }
+.campaign-focus-button:hover { background: rgba(106,167,255,.16); }
 
 .recommendations { display: grid; gap: 12px; counter-reset: recommendation; }
 .recommendation {
@@ -408,6 +428,9 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 25
 
 .performance-heading { align-items: center; }
 .table-search { width: min(280px, 100%); }
+.performance-tools { display: flex; align-items: end; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+.table-select { display: grid; gap: 4px; min-width: 145px; color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.table-select select { min-height: 43px; text-transform: none; letter-spacing: 0; font-size: 11px; }
 .table-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 18px 0 10px; scrollbar-width: thin; }
 .table-tabs button { flex: 0 0 auto; border: 1px solid var(--border); border-radius: 9px; background: transparent; color: var(--muted); padding: 8px 11px; cursor: pointer; font-size: 12px; font-weight: 700; }
 .table-tabs button.active { background: #173254; border-color: rgba(106,167,255,.42); color: var(--text); }
@@ -486,7 +509,8 @@ footer { min-height: 74px; display: flex; flex-wrap: wrap; align-items: center; 
   .funnel-row { grid-template-columns: 88px 1fr; }
   .funnel-value { grid-column: 2; }
   .performance-heading { align-items: stretch; }
-  .table-search { width: 100%; }
+  .performance-tools { justify-content: stretch; }
+  .table-search, .table-select { width: 100%; }
   .source-status, .method-grid { grid-template-columns: 1fr; }
   .campaign-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -500,7 +524,7 @@ footer { min-height: 74px; display: flex; flex-wrap: wrap; align-items: center; 
   :root { color-scheme: light; }
   body { background: #fff; color: #101828; }
   .app-shell { width: 100%; }
-  .topbar-actions, .filter-card, .table-search, .table-tabs, footer { display: none !important; }
+  .topbar-actions, .filter-card, .performance-tools, .table-tabs, footer, .campaign-focus-button, .chart-metric-tabs { display: none !important; }
   .panel, .kpi-card, .recommendation { background: #fff; box-shadow: none; border-color: #d7dde7; break-inside: avoid; }
   .hero { grid-template-columns: 1fr; }
   .hero-description, .section-caption, .score-copy p, .decision-why, .insight-item p, .recommendation-block p, .panel-note { color: #475467; }
