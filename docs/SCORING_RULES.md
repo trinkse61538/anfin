@@ -1,59 +1,68 @@
-# Scoring & Recommendation Rules
+# Media Scoring Rules
 
-Các ngưỡng có thể chỉnh trong `assets/js/config.js`.
+Các ngưỡng được cấu hình tại `assets/js/config.js`.
 
-## Nguyên tắc
+## Metric set
 
-1. **Plan là chuẩn so sánh.** Nếu `04_Plan` vẫn là dòng mẫu, report không tự bịa mục tiêu.
-2. **Actual Leads khác Ads Conversions.** Conversions có thể là cài app, engagement hoặc sự kiện mềm.
-3. **Không quyết định từ volume nhỏ.** Mặc định cần ít nhất 30 clicks và 3 conversions để đánh giá CPL mạnh.
-4. **Tracking đứng trước tối ưu media.** Khi conversion goal sai, Smart Bidding có thể tối ưu sai hành động.
-5. **Scale theo bước.** Khuyến nghị tăng 10–15% chỉ xuất hiện sau khi có đủ volume và chất lượng kết quả được xác minh.
+- Spend
+- Impressions
+- Clicks
+- CTR
+- Average CPC
+- Average CPM
+- Interactions / Interaction Rate
+- Engagements / Engagement Rate
+- Invalid Clicks / Invalid Click Rate
+- Search Impression Share / Lost IS khi có dữ liệu Search
+- PMax Ad Strength
 
-## Mức đánh giá CPL
+## Yêu cầu volume
 
-| Trạng thái | Quy tắc mặc định |
+Một nhóm chỉ được kết luận mạnh khi đạt đồng thời:
+
+- ít nhất 1.000 impressions;
+- ít nhất 30 clicks.
+
+Nhóm chưa đủ volume nhận score trung tính và trạng thái `Chưa đủ volume`.
+
+## Benchmark
+
+1. Campaign được so với các campaign cùng `Campaign Type` nếu có từ hai peer trở lên.
+2. Ad Group/Ad được so trong campaign tương ứng.
+3. Nếu không có đủ peer, report dùng benchmark toàn tài khoản.
+4. Mỗi kỳ được so với khoảng thời gian liền trước có cùng số ngày.
+
+## Tín hiệu cộng điểm
+
+- CTR cao hơn benchmark ít nhất 15%.
+- CPC thấp hơn benchmark ít nhất 15%.
+- CTR tăng ít nhất 20% so với kỳ trước.
+- CPC giảm ít nhất 20% so với kỳ trước.
+- PMax Ad Strength ở mức Good hoặc Excellent.
+
+## Tín hiệu trừ điểm
+
+- CTR thấp hơn 70% benchmark.
+- CPC cao hơn 135% benchmark.
+- CTR giảm hoặc CPC tăng từ 20% so với kỳ trước.
+- Spend tăng trên 20% nhưng clicks giảm.
+- Invalid Click Rate từ 5%.
+- PMax Ad Strength ở mức Poor hoặc Incomplete.
+
+## Mức score
+
+| Score | Trạng thái |
 |---|---|
-| Tốt | CPL ≤ 100% Target CPL và có ≥ 3 conversions |
-| Theo dõi | CPL > 120% Target CPL |
-| Hành động | CPL > 150% Target CPL hoặc đã chi ≥ 1 Target CPL nhưng 0 conversion |
+| 78–100 | Media tốt |
+| 58–77 | Ổn định |
+| 42–57 | Cần chỉnh |
+| 0–41 | Ưu tiên xử lý |
 
-Nếu chưa có Target CPL, report chỉ so sánh tương đối với CPL trung bình tài khoản.
+## Nguyên tắc điều chỉnh
 
-## Pacing ngân sách
-
-Plan được phân bổ theo tỷ lệ số ngày giao với kỳ đang xem.
-
-| Trạng thái | Spend / Planned Budget của kỳ |
-|---|---|
-| Bám kế hoạch | 80%–115% |
-| Under-pacing | < 80% |
-| Over-pacing | > 115% |
-
-Under-pacing không tự động dẫn đến tăng ngân sách. Report yêu cầu kiểm tra CPL, Actual Leads và tracking trước.
-
-## Conversion quality
-
-- `DOWNLOAD`, `ENGAGEMENT`, `PAGE_VIEW`, `DEFAULT`, `OTHER` được xem là tín hiệu mềm.
-- Nếu ≥ 60% conversions thuộc nhóm mềm, report đề nghị audit Primary/Secondary goals.
-- Nếu Conversion Value quá thấp so với Cost, ROAS bị đánh dấu chưa đáng tin cậy.
-
-## Impression Share
-
-- Lost IS Budget ≥ 20%: theo dõi giới hạn ngân sách; chỉ tăng nếu hiệu quả đạt target.
-- Lost IS Rank ≥ 30%: kiểm tra Ad Rank, mức liên quan, asset/creative, landing và bid.
-
-## Điểm sức khỏe
-
-Điểm bắt đầu từ 100 và bị trừ theo rủi ro:
-
-- thiếu Plan;
-- thiếu Actual Leads;
-- dữ liệu chậm cập nhật;
-- conversion chủ yếu là tín hiệu mềm;
-- thiếu conversion value;
-- tỷ trọng chi tiêu vào campaign không có kết quả;
-- pacing hoặc lead attainment lệch lớn.
-
-Điểm không thay thế phán đoán của người vận hành; mục đích là sắp xếp vấn đề nào cần kiểm tra trước.
+- Chỉ thay một nhóm yếu tố mỗi lần để đọc được tác động.
+- Không mở rộng spend khi CPC đang tăng đồng thời CTR giảm.
+- Với PMax, bổ sung độ đa dạng asset và hướng tới Good/Excellent; tránh thay toàn bộ asset cùng lúc.
+- Campaign mạnh được dùng làm nguồn hypothesis cho creative/audience test, không tự động được tăng spend.
+- Quan sát ít nhất một chu kỳ dữ liệu sau thay đổi trước khi chỉnh tiếp.
 
