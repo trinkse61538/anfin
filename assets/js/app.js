@@ -2,8 +2,35 @@ import { loadReportData } from './data.js';
 import { analyzeReport, getDataBounds, getDefaultRange } from './analysis.js';
 
 const config = window.REPORT_CONFIG;
-const state = { bundle: null, analysis: null, activeTable: 'campaigns', search: '' };
+const state = {
+  bundle: null,
+  analysis: null,
+  bounds: null,
+  activeTable: 'campaigns',
+  search: '',
+  selectedType: 'ALL',
+  selectedCampaign: 'ALL',
+  chartMetric: 'traffic',
+  tableStatus: 'ALL',
+  tableSort: 'cost'
+};
 const el = id => document.getElementById(id);
+
+function parseDateKey(key) {
+  const [year, month, day] = String(key).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function addDays(key, days) {
+  const date = parseDateKey(key);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function daysInclusive(from, to) {
+  if (!from || !to || from > to) return 0;
+  return Math.floor((parseDateKey(to) - parseDateKey(from)) / 86400000) + 1;
+}
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -120,36 +147,54 @@ function renderTrend(daily) {
   const container = el('trend-chart');
   if (!daily.length) {
     container.innerHTML = '<div class="empty-visual">Không có dữ liệu trong kỳ đã chọn.</div>';
+    el('chart-legend').innerHTML = '';
     return;
   }
+  const chartDefinitions = {
+    traffic: {
+      title: 'Chi tiêu và clicks theo ngày',
+      series: [
+        { key: 'cost', label: 'Chi tiêu', color: 'var(--blue)', format: value => formatCurrency(value) },
+        { key: 'clicks', label: 'Clicks', color: 'var(--green)', format: value => `${formatInteger(value)} clicks` }
+      ]
+    },
+    ctr: { title: 'CTR theo ngày', series: [{ key: 'ctr', label: 'CTR', color: 'var(--cyan)', format: formatPercent }] },
+    cpc: { title: 'Average CPC theo ngày', series: [{ key: 'cpc', label: 'Average CPC', color: 'var(--amber)', format: value => formatCurrency(value) }] },
+    cpm: { title: 'Average CPM theo ngày', series: [{ key: 'cpm', label: 'Average CPM', color: 'var(--blue)', format: value => formatCurrency(value) }] }
+  };
+  const definition = chartDefinitions[state.chartMetric] || chartDefinitions.traffic;
+  el('trend-title').textContent = definition.title;
+  el('chart-legend').innerHTML = definition.series.map(series => `<span><i style="background:${series.color}"></i>${escapeHtml(series.label)}</span>`).join('');
   const width = 920;
   const height = 290;
   const pad = { left: 54, right: 28, top: 18, bottom: 38 };
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
-  const maxCost = Math.max(...daily.map(item => item.cost), 1);
-  const maxClicks = Math.max(...daily.map(item => item.clicks), 1);
   const xAt = index => pad.left + (daily.length === 1 ? innerW / 2 : index / (daily.length - 1) * innerW);
-  const spendPoints = daily.map((item, index) => ({ x: xAt(index), y: pad.top + innerH - item.cost / maxCost * innerH }));
-  const clickPoints = daily.map((item, index) => ({ x: xAt(index), y: pad.top + innerH - item.clicks / maxClicks * innerH }));
-  const areaPath = `${chartPath(spendPoints)} L ${spendPoints[spendPoints.length - 1].x} ${pad.top + innerH} L ${spendPoints[0].x} ${pad.top + innerH} Z`;
+  const renderedSeries = definition.series.map(series => {
+    const max = Math.max(...daily.map(item => Number(item[series.key]) || 0), 1e-9);
+    const points = daily.map((item, index) => ({ x: xAt(index), y: pad.top + innerH - (Number(item[series.key]) || 0) / max * innerH }));
+    return { ...series, max, points };
+  });
+  const primary = renderedSeries[0];
+  const areaPath = `${chartPath(primary.points)} L ${primary.points[primary.points.length - 1].x} ${pad.top + innerH} L ${primary.points[0].x} ${pad.top + innerH} Z`;
   const grid = [0, .25, .5, .75, 1].map(ratio => {
     const y = pad.top + innerH - ratio * innerH;
-    return `<line class="grid-line" x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}"></line><text class="axis-label" x="${pad.left - 8}" y="${y + 3}" text-anchor="end">${escapeHtml(formatCurrency(maxCost * ratio, true))}</text>`;
+    return `<line class="grid-line" x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}"></line><text class="axis-label" x="${pad.left - 8}" y="${y + 3}" text-anchor="end">${escapeHtml(state.chartMetric === 'ctr' ? formatPercent(primary.max * ratio) : formatCurrency(primary.max * ratio, true))}</text>`;
   }).join('');
   const labelEvery = Math.max(1, Math.ceil(daily.length / 6));
   const labels = daily.map((item, index) => index % labelEvery === 0 || index === daily.length - 1
     ? `<text class="axis-label" x="${xAt(index)}" y="${height - 9}" text-anchor="middle">${escapeHtml(formatDate(item.date).slice(0, 5))}</text>`
     : '').join('');
-  const spendDots = spendPoints.map((point, index) => `<circle class="chart-dot" cx="${point.x}" cy="${point.y}" r="3.5" fill="var(--blue)"><title>${escapeHtml(formatDate(daily[index].date))}: ${escapeHtml(formatCurrency(daily[index].cost))}</title></circle>`).join('');
-  const clickDots = clickPoints.map((point, index) => `<circle class="chart-dot" cx="${point.x}" cy="${point.y}" r="3" fill="var(--green)"><title>${escapeHtml(formatDate(daily[index].date))}: ${escapeHtml(formatInteger(daily[index].clicks))} clicks</title></circle>`).join('');
+  const lines = renderedSeries.map((series, seriesIndex) => `
+    <path class="metric-line" style="stroke:${series.color};stroke-width:${seriesIndex ? 2 : 2.5}" d="${chartPath(series.points)}"></path>
+    ${series.points.map((point, index) => `<circle class="chart-dot" cx="${point.x}" cy="${point.y}" r="${seriesIndex ? 3 : 3.5}" fill="${series.color}"><title>${escapeHtml(formatDate(daily[index].date))}: ${escapeHtml(series.format(daily[index][series.key]))}</title></circle>`).join('')}
+  `).join('');
   container.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Xu hướng chi tiêu và clicks">
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(definition.title)}">
       <defs><linearGradient id="spendGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#6aa7ff" stop-opacity=".28"/><stop offset="1" stop-color="#6aa7ff" stop-opacity="0"/></linearGradient></defs>
       ${grid}<path class="spend-area" d="${areaPath}"></path>
-      <path class="spend-line" d="${chartPath(spendPoints)}"></path>
-      <path class="click-line" d="${chartPath(clickPoints)}"></path>
-      ${spendDots}${clickDots}${labels}
+      ${lines}${labels}
     </svg>
   `;
 }
@@ -211,6 +256,7 @@ function renderCampaignReview(campaigns) {
         <span class="level-badge level-${escapeHtml(campaign.assessment.level)}">${escapeHtml(campaign.assessment.label)}</span>
         <p><strong>Vì sao:</strong> ${escapeHtml(campaign.assessment.reason)}</p>
         <p><strong>Cần chỉnh:</strong> ${escapeHtml(campaign.assessment.action)}</p>
+        <button class="campaign-focus-button" type="button" data-focus-campaign="${escapeHtml(campaign.name)}">Xem riêng campaign này</button>
       </div>
     </article>
   `).join('');
@@ -236,12 +282,28 @@ function tableStatus(assessment) {
   return `<span class="table-status level-${escapeHtml(level)}" title="${escapeHtml(assessment?.reason || '')}">${escapeHtml(label)}</span>`;
 }
 
-function renderPerformanceTable() {
+function getVisibleTableRows(limit = true) {
   if (!state.analysis) return;
   const key = state.activeTable;
   const search = state.search.trim().toLowerCase();
   let rows = state.analysis.tables[key] || [];
-  rows = rows.filter(row => !search || `${row.name || ''} ${row.secondary || ''}`.toLowerCase().includes(search)).slice(0, 100);
+  rows = rows.filter(row => !search || `${row.name || ''} ${row.secondary || ''}`.toLowerCase().includes(search));
+  rows = rows.filter(row => state.tableStatus === 'ALL' || (row.assessment?.level || 'neutral') === state.tableStatus);
+  const sorters = {
+    cost: (a, b) => b.cost - a.cost,
+    score: (a, b) => b.assessment.score - a.assessment.score,
+    clicks: (a, b) => b.clicks - a.clicks,
+    ctr: (a, b) => b.ctr - a.ctr,
+    cpc: (a, b) => (a.clicks ? a.cpc : Number.POSITIVE_INFINITY) - (b.clicks ? b.cpc : Number.POSITIVE_INFINITY)
+  };
+  rows = [...rows].sort(sorters[state.tableSort] || sorters.cost);
+  return limit ? rows.slice(0, 100) : rows;
+}
+
+function renderPerformanceTable() {
+  if (!state.analysis) return;
+  const key = state.activeTable;
+  const rows = getVisibleTableRows(true);
 
   el('performance-head').innerHTML = '<tr><th>Nhóm</th><th>Loại / Campaign</th><th>Media Score</th><th>Spend</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>CPC</th><th>CPM</th><th>Xu hướng</th><th>Đánh giá</th></tr>';
   el('performance-body').innerHTML = rows.length ? rows.map(row => `
@@ -259,7 +321,8 @@ function renderPerformanceTable() {
       <td>${tableStatus(row.assessment)}</td>
     </tr>
   `).join('') : '<tr><td class="no-rows" colspan="11">Không có dữ liệu phù hợp.</td></tr>';
-  el('table-note').textContent = state.analysis.tableNotes[key] || '';
+  const total = getVisibleTableRows(false).length;
+  el('table-note').textContent = `${state.analysis.tableNotes[key] || ''} Đang hiển thị ${Math.min(total, 100)}/${total} dòng phù hợp.`;
 }
 
 function renderSources(bundle) {
@@ -284,6 +347,128 @@ function renderMethod() {
   ].map(item => `<span>${escapeHtml(item)}</span>`).join('');
 }
 
+function readUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    from: params.get('from'),
+    to: params.get('to'),
+    type: params.get('type'),
+    campaign: params.get('campaign'),
+    chart: params.get('chart'),
+    table: params.get('table'),
+    status: params.get('status'),
+    sort: params.get('sort')
+  };
+}
+
+function updateUrlState() {
+  const params = new URLSearchParams();
+  params.set('from', el('date-from').value);
+  params.set('to', el('date-to').value);
+  if (state.selectedType !== 'ALL') params.set('type', state.selectedType);
+  if (state.selectedCampaign !== 'ALL') params.set('campaign', state.selectedCampaign);
+  if (state.chartMetric !== 'traffic') params.set('chart', state.chartMetric);
+  if (state.activeTable !== 'campaigns') params.set('table', state.activeTable);
+  if (state.tableStatus !== 'ALL') params.set('status', state.tableStatus);
+  if (state.tableSort !== 'cost') params.set('sort', state.tableSort);
+  window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}${window.location.hash}`);
+}
+
+function campaignRows() {
+  return state.bundle?.data?.campaigns || [];
+}
+
+function populateFilterOptions() {
+  const rows = campaignRows();
+  const types = [...new Set(rows.map(row => String(row['Campaign Type'] || 'OTHER')).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (state.selectedType !== 'ALL' && !types.includes(state.selectedType)) state.selectedType = 'ALL';
+  el('campaign-type').innerHTML = `<option value="ALL">Tất cả loại</option>${types.map(type => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`).join('')}`;
+  el('campaign-type').value = state.selectedType;
+
+  const campaigns = [...new Set(rows
+    .filter(row => state.selectedType === 'ALL' || String(row['Campaign Type'] || 'OTHER') === state.selectedType)
+    .map(row => String(row.Campaign || ''))
+    .filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (state.selectedCampaign !== 'ALL' && !campaigns.includes(state.selectedCampaign)) state.selectedCampaign = 'ALL';
+  el('campaign-select').innerHTML = `<option value="ALL">Tất cả campaign</option>${campaigns.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+  el('campaign-select').value = state.selectedCampaign;
+}
+
+function getFilteredData() {
+  const data = state.bundle.data;
+  if (state.selectedType === 'ALL' && state.selectedCampaign === 'ALL') return data;
+  const allowed = new Set((data.campaigns || [])
+    .filter(row => state.selectedType === 'ALL' || String(row['Campaign Type'] || 'OTHER') === state.selectedType)
+    .filter(row => state.selectedCampaign === 'ALL' || String(row.Campaign || '') === state.selectedCampaign)
+    .map(row => String(row.Campaign || '')));
+  return Object.fromEntries(Object.entries(data).map(([key, rows]) => {
+    if (!Array.isArray(rows)) return [key, rows];
+    return [key, rows.filter(row => row.Campaign === undefined || allowed.has(String(row.Campaign || '')))];
+  }));
+}
+
+function markActiveQuickRange() {
+  const from = el('date-from').value;
+  const to = el('date-to').value;
+  const days = daysInclusive(from, to);
+  const monthStart = `${to.slice(0, 8)}01`;
+  const isMtd = from === monthStart;
+  document.querySelectorAll('#quick-ranges button').forEach(button => {
+    const matchesDays = !isMtd && button.dataset.days && Number(button.dataset.days) === days;
+    const matchesMtd = button.dataset.range === 'mtd' && isMtd;
+    const active = Boolean(matchesDays || matchesMtd);
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function applyQuickRange(button) {
+  if (!state.bounds?.max) return;
+  const to = state.bounds.max;
+  const requestedFrom = button.dataset.range === 'mtd'
+    ? `${to.slice(0, 8)}01`
+    : addDays(to, -(Number(button.dataset.days) - 1));
+  el('date-from').value = requestedFrom < state.bounds.min ? state.bounds.min : requestedFrom;
+  el('date-to').value = to;
+  renderReport();
+}
+
+function exportCurrentTable() {
+  const rows = getVisibleTableRows(false) || [];
+  if (!rows.length) {
+    window.alert('Không có dòng phù hợp để xuất.');
+    return;
+  }
+  const headers = ['Nhóm', 'Loại / Campaign', 'Media Score', 'Trạng thái', 'Spend', 'Impressions', 'Clicks', 'CTR', 'CPC', 'CPM', 'CTR trend', 'CPC trend'];
+  const csvCell = value => {
+    let text = String(value ?? '');
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+  const lines = [headers, ...rows.map(row => [
+    row.name || row.id,
+    row.secondary || '',
+    row.assessment?.score,
+    row.assessment?.label,
+    row.cost,
+    row.impressions,
+    row.clicks,
+    row.ctr,
+    row.cpc,
+    row.cpm,
+    row.trend?.ctr,
+    row.trend?.cpc
+  ])].map(columns => columns.map(csvCell).join(','));
+  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `anfin-google-ads-${state.activeTable}-${el('date-from').value}-${el('date-to').value}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}
+
 function renderReport() {
   const from = el('date-from').value;
   const to = el('date-to').value;
@@ -291,7 +476,9 @@ function renderReport() {
     window.alert('Vui lòng chọn khoảng ngày hợp lệ.');
     return;
   }
-  state.analysis = analyzeReport(state.bundle.data, { from, to }, config);
+  state.selectedType = el('campaign-type').value;
+  state.selectedCampaign = el('campaign-select').value;
+  state.analysis = analyzeReport(getFilteredData(), { from, to }, config);
   const analysis = state.analysis;
   el('period-caption').textContent = `${formatDate(from)} – ${formatDate(to)} · so với ${formatDate(analysis.period.previousFrom)} – ${formatDate(analysis.period.previousTo)}`;
   el('freshness-text').textContent = `Campaign Daily mới nhất: ${formatDate(analysis.period.dataMax)}${analysis.period.daysBehind ? ` · chậm ${analysis.period.daysBehind} ngày` : ' · đúng nhịp'}`;
@@ -306,6 +493,8 @@ function renderReport() {
   renderRecommendations(analysis.recommendations);
   renderPerformanceTable();
   renderSources(state.bundle);
+  markActiveQuickRange();
+  updateUrlState();
   el('report-content').classList.remove('hidden');
 }
 
@@ -317,13 +506,41 @@ async function load(forceRefresh = false) {
     state.bundle = await loadReportData(config, forceRefresh);
     const bounds = getDataBounds(state.bundle.data.campaigns || []);
     if (!bounds.max) throw new Error('07_GAds_Campaign_Daily chưa có dòng dữ liệu hợp lệ.');
+    const firstLoad = !state.bounds;
+    state.bounds = bounds;
     const defaultRange = getDefaultRange(state.bundle.data.campaigns || [], config.defaultLookbackDays);
     el('date-from').min = bounds.min;
     el('date-from').max = bounds.max;
     el('date-to').min = bounds.min;
     el('date-to').max = bounds.max;
-    el('date-from').value = defaultRange.from;
-    el('date-to').value = defaultRange.to;
+    if (firstLoad) {
+      const urlState = readUrlState();
+      const validUrlRange = urlState.from && urlState.to && urlState.from >= bounds.min && urlState.to <= bounds.max && urlState.from <= urlState.to;
+      el('date-from').value = validUrlRange ? urlState.from : defaultRange.from;
+      el('date-to').value = validUrlRange ? urlState.to : defaultRange.to;
+      state.selectedType = urlState.type || 'ALL';
+      state.selectedCampaign = urlState.campaign || 'ALL';
+      if (['traffic', 'ctr', 'cpc', 'cpm'].includes(urlState.chart)) state.chartMetric = urlState.chart;
+      if (['campaigns', 'adgroups', 'ads', 'assetGroups', 'devices', 'networks'].includes(urlState.table)) state.activeTable = urlState.table;
+      if (['ALL', 'good', 'neutral', 'watch', 'action'].includes(urlState.status)) state.tableStatus = urlState.status;
+      if (['cost', 'score', 'clicks', 'ctr', 'cpc'].includes(urlState.sort)) state.tableSort = urlState.sort;
+    } else {
+      el('date-from').value = el('date-from').value < bounds.min ? bounds.min : el('date-from').value;
+      el('date-to').value = el('date-to').value > bounds.max ? bounds.max : el('date-to').value;
+    }
+    populateFilterOptions();
+    el('table-status').value = state.tableStatus;
+    el('table-sort').value = state.tableSort;
+    document.querySelectorAll('#chart-metric-tabs button').forEach(button => {
+      const active = button.dataset.chart === state.chartMetric;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    document.querySelectorAll('#table-tabs button').forEach(button => {
+      const active = button.dataset.table === state.activeTable;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
     const optionalErrors = state.bundle.errors.length;
     setConnection('connected', optionalErrors ? `Đã kết nối · ${optionalErrors} nguồn phụ lỗi` : 'Google Sheets đã kết nối');
     renderReport();
@@ -341,6 +558,69 @@ function init() {
   renderMethod();
   el('apply-filter').addEventListener('click', renderReport);
   el('refresh-data').addEventListener('click', () => load(true));
+  el('reset-filters').addEventListener('click', () => {
+    const range = getDefaultRange(campaignRows(), config.defaultLookbackDays);
+    el('date-from').value = range.from;
+    el('date-to').value = range.to;
+    state.selectedType = 'ALL';
+    state.selectedCampaign = 'ALL';
+    state.chartMetric = 'traffic';
+    state.activeTable = 'campaigns';
+    state.tableStatus = 'ALL';
+    state.tableSort = 'cost';
+    state.search = '';
+    el('table-search').value = '';
+    el('table-status').value = 'ALL';
+    el('table-sort').value = 'cost';
+    populateFilterOptions();
+    document.querySelectorAll('#chart-metric-tabs button').forEach(button => {
+      const active = button.dataset.chart === 'traffic';
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    document.querySelectorAll('#table-tabs button').forEach(button => {
+      const active = button.dataset.table === 'campaigns';
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
+    renderReport();
+  });
+  el('quick-ranges').addEventListener('click', event => {
+    const button = event.target.closest('button[data-days], button[data-range]');
+    if (button) applyQuickRange(button);
+  });
+  el('campaign-type').addEventListener('change', event => {
+    state.selectedType = event.target.value;
+    state.selectedCampaign = 'ALL';
+    populateFilterOptions();
+    renderReport();
+  });
+  el('campaign-select').addEventListener('change', event => {
+    state.selectedCampaign = event.target.value;
+    renderReport();
+  });
+  el('chart-metric-tabs').addEventListener('click', event => {
+    const button = event.target.closest('button[data-chart]');
+    if (!button) return;
+    state.chartMetric = button.dataset.chart;
+    document.querySelectorAll('#chart-metric-tabs button').forEach(item => {
+      const active = item === button;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-pressed', String(active));
+    });
+    renderTrend(state.analysis.daily);
+    updateUrlState();
+  });
+  el('campaign-review').addEventListener('click', event => {
+    const button = event.target.closest('button[data-focus-campaign]');
+    if (!button) return;
+    state.selectedCampaign = button.dataset.focusCampaign;
+    populateFilterOptions();
+    renderReport();
+    el('top').scrollIntoView({ behavior: 'smooth' });
+  });
+  el('export-button').addEventListener('click', exportCurrentTable);
+  el('print-button').addEventListener('click', () => window.print());
   el('method-button').addEventListener('click', () => el('method-dialog').showModal());
   el('method-dialog').addEventListener('click', event => {
     if (event.target === el('method-dialog')) el('method-dialog').close();
@@ -349,12 +629,27 @@ function init() {
     const button = event.target.closest('button[data-table]');
     if (!button) return;
     state.activeTable = button.dataset.table;
-    document.querySelectorAll('#table-tabs button').forEach(item => item.classList.toggle('active', item === button));
+    document.querySelectorAll('#table-tabs button').forEach(item => {
+      const active = item === button;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', String(active));
+    });
     renderPerformanceTable();
+    updateUrlState();
   });
   el('table-search').addEventListener('input', event => {
     state.search = event.target.value;
     renderPerformanceTable();
+  });
+  el('table-status').addEventListener('change', event => {
+    state.tableStatus = event.target.value;
+    renderPerformanceTable();
+    updateUrlState();
+  });
+  el('table-sort').addEventListener('change', event => {
+    state.tableSort = event.target.value;
+    renderPerformanceTable();
+    updateUrlState();
   });
   load(false);
 }
