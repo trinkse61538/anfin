@@ -394,6 +394,8 @@ export function analyzeReport(data, range, config) {
   const trend = buildTrend(metrics, previousMetrics);
   const bounds = getDataBounds(data.campaigns || []);
   const expectedLatest = getYesterdayInTimezone(config.timezone);
+  const todayKey = addDays(expectedLatest, 1);
+  const isPartialToday = bounds.max === todayKey;
   const daysBehind = bounds.max && expectedLatest > bounds.max ? daysInclusive(addDays(bounds.max, 1), expectedLatest) : 0;
 
   const definitions = {
@@ -437,7 +439,9 @@ export function analyzeReport(data, range, config) {
   const insights = { good: [], watch: [], action: [] };
   const recommendations = [];
 
-  if (daysBehind === 0) {
+  if (isPartialToday) {
+    insights.good.push(createInsight('good', 'freshness', 'Dữ liệu hôm nay đang cập nhật', `Ngày mới nhất ${bounds.max}`, 'Clicks, impressions và cost trong ngày được làm mới theo giờ nhưng vẫn có thể trễ và chưa phải số cuối ngày.', 'Dùng dữ liệu hôm nay để theo dõi delivery; ưu tiên khoảng ngày đã hoàn tất khi ra quyết định lớn.'));
+  } else if (daysBehind === 0) {
     insights.good.push(createInsight('good', 'freshness', 'Dữ liệu đang đúng nhịp', `Ngày mới nhất ${bounds.max}`, 'Campaign Daily đã có dữ liệu đến ngày hoàn tất gần nhất.', 'Duy trì lịch Google Ads Script hàng ngày.'));
   } else if (daysBehind === 1) {
     insights.watch.push(createInsight('watch', 'freshness', 'Dữ liệu chậm 1 ngày', `Ngày mới nhất ${bounds.max}`, 'Có thể tài khoản không phát sinh delivery hoặc lần chạy gần nhất chưa cập nhật Campaign Daily.', 'Kiểm tra log script và xác nhận sheet 07 có ngày mới.'));
@@ -555,7 +559,7 @@ export function analyzeReport(data, range, config) {
   ];
 
   return {
-    period: { from, to, days: periodDays, previousFrom, previousTo, dataMin: bounds.min, dataMax: bounds.max, expectedLatest, daysBehind },
+    period: { from, to, days: periodDays, previousFrom, previousTo, dataMin: bounds.min, dataMax: bounds.max, expectedLatest, todayKey, isPartialToday, daysBehind },
     metrics,
     previousMetrics,
     trend,

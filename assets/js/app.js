@@ -2,6 +2,7 @@ import { loadReportData } from './data.js';
 import { analyzeReport, getDataBounds, getDefaultRange } from './analysis.js';
 
 const config = window.REPORT_CONFIG;
+const AUTO_REFRESH_MINUTES = 15;
 const state = {
   bundle: null,
   analysis: null,
@@ -12,7 +13,9 @@ const state = {
   selectedCampaign: 'ALL',
   chartMetric: 'traffic',
   tableStatus: 'ALL',
-  tableSort: 'cost'
+  tableSort: 'cost',
+  loading: false,
+  autoRefreshTimer: null
 };
 const el = id => document.getElementById(id);
 
@@ -88,10 +91,19 @@ function setConnection(level, text) {
 }
 
 function setLoading(isLoading) {
+  state.loading = isLoading;
   el('loading-state').classList.toggle('hidden', !isLoading);
   el('refresh-data').disabled = isLoading;
   el('apply-filter').disabled = isLoading;
   if (isLoading) setConnection('loading', 'Đang kết nối dữ liệu');
+}
+
+function formatRefreshTime() {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: config.timezone,
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date());
 }
 
 function showError(message) {
@@ -481,7 +493,10 @@ function renderReport() {
   state.analysis = analyzeReport(getFilteredData(), { from, to }, config);
   const analysis = state.analysis;
   el('period-caption').textContent = `${formatDate(from)} – ${formatDate(to)} · so với ${formatDate(analysis.period.previousFrom)} – ${formatDate(analysis.period.previousTo)}`;
-  el('freshness-text').textContent = `Campaign Daily mới nhất: ${formatDate(analysis.period.dataMax)}${analysis.period.daysBehind ? ` · chậm ${analysis.period.daysBehind} ngày` : ' · đúng nhịp'}`;
+  const freshnessStatus = analysis.period.isPartialToday
+    ? ' · hôm nay đang cập nhật, số liệu chưa hoàn tất'
+    : (analysis.period.daysBehind ? ` · chậm ${analysis.period.daysBehind} ngày` : ' · đúng nhịp');
+  el('freshness-text').textContent = `Campaign Daily mới nhất: ${formatDate(analysis.period.dataMax)}${freshnessStatus} · web kiểm tra ${formatRefreshTime()}`;
   renderExecutive(analysis);
   renderKpis(analysis.kpis);
   renderTrend(analysis.daily);
@@ -499,6 +514,7 @@ function renderReport() {
 }
 
 async function load(forceRefresh = false) {
+  if (state.loading) return;
   setLoading(true);
   el('error-state').classList.add('hidden');
   try {
@@ -549,6 +565,11 @@ async function load(forceRefresh = false) {
   } finally {
     setLoading(false);
   }
+}
+
+function startAutoRefresh() {
+  if (state.autoRefreshTimer) window.clearInterval(state.autoRefreshTimer);
+  state.autoRefreshTimer = window.setInterval(() => load(true), AUTO_REFRESH_MINUTES * 60 * 1000);
 }
 
 function init() {
@@ -651,6 +672,7 @@ function init() {
     renderPerformanceTable();
     updateUrlState();
   });
+  startAutoRefresh();
   load(false);
 }
 
