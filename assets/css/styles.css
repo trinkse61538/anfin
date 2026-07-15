@@ -326,20 +326,20 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 25
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .chart-legend i { width: 14px; height: 3px; border-radius: 3px; }
 .legend-spend { background: var(--blue); }
-.legend-conv { background: var(--green); }
+.legend-clicks { background: var(--green); }
 .trend-chart { min-height: 290px; margin-top: 20px; }
 .trend-chart svg { display: block; width: 100%; height: 290px; overflow: visible; }
 .grid-line { stroke: rgba(154,177,209,.12); stroke-width: 1; }
 .axis-label { fill: var(--muted); font-size: 10px; }
 .spend-area { fill: url(#spendGradient); }
 .spend-line { fill: none; stroke: var(--blue); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-.conv-line { fill: none; stroke: var(--green); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.click-line { fill: none; stroke: var(--green); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .chart-dot { stroke: #0d1b2e; stroke-width: 2; }
 .empty-visual { height: 260px; display: grid; place-items: center; color: var(--muted); text-align: center; }
 
 .funnel-visual { display: grid; gap: 10px; margin-top: 22px; }
 .funnel-row { display: grid; grid-template-columns: 105px 1fr auto; gap: 10px; align-items: center; }
-.funnel-label { color: var(--muted); font-size: 12px; }
+.funnel-label { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .funnel-track { height: 11px; border-radius: 999px; background: rgba(145,164,189,.1); overflow: hidden; }
 .funnel-bar { height: 100%; min-width: 2px; border-radius: inherit; background: linear-gradient(90deg, var(--blue-strong), var(--cyan)); }
 .funnel-row:nth-child(3) .funnel-bar, .funnel-row:nth-child(4) .funnel-bar { background: linear-gradient(90deg, #34ba84, var(--green)); }
@@ -364,6 +364,29 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106, 167, 25
 .insight-item summary { color: var(--muted-strong); font-size: 11px; font-weight: 750; cursor: pointer; }
 .insight-item details p { margin-top: 7px; }
 .insight-empty { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 8px; }
+
+.campaign-review { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.campaign-card { padding: 21px; box-shadow: none; }
+.campaign-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.campaign-card-head h3 { margin: 7px 0 2px; font-size: 18px; line-height: 1.25; letter-spacing: -.02em; }
+.campaign-card-head small { color: var(--muted); font-size: 10px; }
+.campaign-type { display: inline-flex; color: var(--blue); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.campaign-score { flex: 0 0 68px; height: 58px; border-radius: 14px; display: flex; align-items: baseline; justify-content: center; padding-top: 12px; }
+.campaign-score strong { font-size: 23px; letter-spacing: -.05em; }
+.campaign-score span { font-size: 10px; opacity: .75; }
+.campaign-score.level-good { background: var(--green-bg); color: var(--green); }
+.campaign-score.level-neutral { background: var(--neutral-bg); color: var(--muted-strong); }
+.campaign-score.level-watch { background: var(--amber-bg); color: var(--amber); }
+.campaign-score.level-action { background: var(--red-bg); color: var(--red); }
+.campaign-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+.campaign-metrics > div { min-width: 0; padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: rgba(4,13,24,.32); }
+.campaign-metrics small, .campaign-metrics strong, .campaign-metrics span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-metrics small { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; }
+.campaign-metrics strong { margin-top: 5px; font-size: 14px; }
+.campaign-metrics span { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.campaign-verdict { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.campaign-verdict p { margin: 9px 0 0; color: var(--muted-strong); font-size: 12px; }
+.campaign-verdict p strong { color: var(--text); }
 
 .recommendations { display: grid; gap: 12px; counter-reset: recommendation; }
 .recommendation {
@@ -439,6 +462,7 @@ footer { min-height: 74px; display: flex; flex-wrap: wrap; align-items: center; 
   .recommendation { grid-template-columns: 44px 1fr; }
   .recommendation > .recommendation-block { grid-column: 2; }
   .source-status { grid-template-columns: 1fr 1fr; }
+  .campaign-review { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 650px) {
@@ -464,6 +488,7 @@ footer { min-height: 74px; display: flex; flex-wrap: wrap; align-items: center; 
   .performance-heading { align-items: stretch; }
   .table-search { width: 100%; }
   .source-status, .method-grid { grid-template-columns: 1fr; }
+  .campaign-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 420px) {
